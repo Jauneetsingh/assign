@@ -1,19 +1,14 @@
-ClickHouse Support Services — Interview Preparation Guide
-Candidate: Jauneet Singh
-Interview Format: 90-minute panel with 2–3 Support Services teammates
-Date prepared: March 1, 2026
-
-Part 1: Presenting Your Take-Home Assignment (20–25 min)
+**Part 1: Presenting Your Take-Home Assignment (20–25 min)**
 They want you to lead this section, presenting as if they are the customer (ACME). Structure your walkthrough like this:
 Suggested Presentation Flow
 Opening (1–2 min): "Hi ACME team, thanks for reaching out. I've reviewed all three issues in your ticket and I'd like to walk you through my findings and recommendations one by one."
-Issue 1 — Database Limit (3–4 min)
+**Issue 1 — Database Limit (3–4 min)**
 
 Explain the difference between hard limit (max_database_num_to_throw in server config) and soft limit (RBAC approach — pre-create databases, revoke CREATE DATABASE).
 Walk through why a server restart is needed for the hard limit.
 Show the validation query against system.server_settings.
 
-Issue 2 — RBAC Users (5–7 min)
+**Issue 2 — RBAC Users (5–7 min)**
 
 Walk through admin user creation and GRANT ALL approach with WITH GRANT OPTION.
 Explain why you matched the default user's permissions (they asked for "same permission level as default").
@@ -21,7 +16,7 @@ Developer profile: explain CREATE SETTINGS PROFILE for max_execution_time and ma
 Row policy on system.tables — explain how CREATE ROW POLICY filters rows transparently.
 Mention the SELECT sleep(1) validation technique.
 
-Issue 3 — Keeper Configuration (5–7 min)
+**Issue 3 — Keeper Configuration (5–7 min)**
 
 This is the most critical section — walk through your debugging process.
 Show the original config, point out the <listen_host> was inside <keeper_server>.
@@ -34,12 +29,12 @@ Add the broader context: what Keeper does, Raft consensus, production best pract
 Closing (1–2 min): "Before I wrap up, I wanted to flag a couple of follow-up items for your team..." — shows proactiveness.
 Potential Follow-Up Questions They May Ask About Your Assignment
 
-"Why did you choose a hard limit over a soft limit for the database restriction?"
+**"Why did you choose a hard limit over a soft limit for the database restriction?"**
 
 Good answer: Explain you showed the hard limit because ACME specifically asked for it, but mention the soft limit (RBAC) is more flexible and doesn't require a restart. In production, a combination of both is ideal.
 
-
-"What happens if someone tries to create a 4th database with the hard limit in place?"
+**
+**"What happens if someone tries to create a 4th database with the hard limit in place?"****
 
 ClickHouse throws an error. The setting max_database_num_to_throw causes the server to reject the CREATE DATABASE statement once the count reaches 3.
 
@@ -59,19 +54,19 @@ You can create more granular row policies or grant SELECT on specific system tab
 Quotas and settings profiles serve different purposes. Quotas limit aggregate usage over time periods (e.g., total queries per hour). Settings profiles limit per-query resources. For "500ms max per query," a settings profile is the correct tool.
 
 
-"What if the Keeper node goes down in production?"
+**"What if the Keeper node goes down in production?"**
 
 Single-node Keeper means total loss of coordination. ReplicatedMergeTree tables will go read-only. This is why you recommended 3+ nodes in production with Raft quorum.
 
 
-"How did you reproduce the Keeper issue?"
+**"How did you reproduce the Keeper issue?"**
 
 Walk through your Docker setup: created a Docker network, launched Keeper with the original (broken) config, checked logs, saw the 127.0.0.1 binding, then fixed it and verified.
 
 
 
 
-Part 2: Technical Questions & Scenarios (20 min)
+**Part 2: Technical Questions & Scenarios (20 min)**
 These are the types of questions a ClickHouse Support team would ask. Study all of them.
 Category A: ClickHouse Architecture & Internals
 Q: What is a MergeTree engine and why is it the default choice?
@@ -91,7 +86,7 @@ Background merges combine smaller data parts into larger ones within a partition
 Category B: ClickHouse Operations & Troubleshooting
 Q: A customer reports slow queries. How do you troubleshoot?
 
-Check system.query_log for the specific query — look at read_rows, read_bytes, memory_usage, query_duration_ms.
+**Check system.query_log for the specific query — look at read_rows, read_bytes, memory_usage, query_duration_ms.**
 Run EXPLAIN or EXPLAIN PIPELINE to see the query plan.
 Check if primary key is being used (look for PrimaryKeyCondition in the plan).
 Check partition pruning — is the WHERE clause hitting the partition key?
@@ -100,7 +95,7 @@ Check system.merges for active merge operations consuming resources.
 Check system.processes for concurrent queries competing for resources.
 Check memory and CPU via system.metrics and system.asynchronous_metrics.
 
-Q: A customer says "my inserts are slow." What do you look at?
+**Q: A customer says "my inserts are slow." What do you look at?**
 
 Are they doing tiny single-row inserts? ClickHouse prefers batches of 10,000+ rows.
 Check system.parts — too many parts means the MergeTree is overwhelmed (the "too many parts" error).
@@ -109,25 +104,25 @@ Is there a materialized view slowing down inserts?
 Network issues if inserting from a remote client.
 Check system.mutations — heavy mutations can compete with inserts.
 
-Q: How would you handle a "Too many parts" error?
+**Q: How would you handle a "Too many parts" error?**
 This means the number of active parts exceeds the threshold (parts_to_throw_insert, default 300 per partition). Solutions: batch inserts into larger chunks, reduce partition granularity, check if merges are keeping up (look at system.merges), increase max_threads for merges, use OPTIMIZE TABLE as a temporary fix, check disk I/O.
 Q: Customer gets "Memory limit exceeded" — how to troubleshoot?
 
-Check max_memory_usage setting for the user/profile.
+**Check max_memory_usage setting for the user/profile.**
 Look at system.query_log for peak_memory_usage of the failing query.
 Consider: is the query doing a large JOIN or GROUP BY? ClickHouse holds intermediate data in memory.
 Solutions: increase memory limit, use max_bytes_before_external_group_by or max_bytes_before_external_sort to spill to disk, optimize the query to process less data.
 
-Q: How do you approach a customer who says "ClickHouse is not working"?
+**Q: How do you approach a customer who says "ClickHouse is not working"?**
 This tests your support process skills:
 
-Clarify the issue — "not working" could mean anything. Ask: what specifically fails, error messages, when did it start, what changed?
+**Clarify the issue — "not working" could mean anything. Ask: what specifically fails, error messages, when did it start, what changed?**
 Check logs: clickhouse-server.log and clickhouse-server.err.log.
 Check server status: SELECT 1, system tables, system.crashes.
 Check disk space, memory, CPU.
 Reproduce the issue in a controlled environment if possible.
 
-Q: A customer wants to migrate from PostgreSQL to ClickHouse. What advice do you give?
+**Q: A customer wants to migrate from PostgreSQL to ClickHouse. What advice do you give?**
 
 ClickHouse is columnar OLAP, not a replacement for OLTP. Don't use it for transactional workloads.
 Denormalize data — ClickHouse doesn't do JOINs as efficiently as row-stores.
@@ -135,14 +130,14 @@ Use bulk inserts, not single-row INSERT.
 Think about your query patterns first, then design your schema (sort order, partition key).
 Use the PostgreSQL table engine or postgresql() function for initial data migration.
 
-Category C: ClickHouse Configuration & Security
+**Category C: ClickHouse Configuration & Security**
 Q: What is the difference between users.xml and SQL-driven access control?
 users.xml is file-based (static, needs restart). SQL-driven RBAC uses CREATE USER, GRANT, etc. (dynamic, no restart). Best practice is SQL-driven RBAC for production. The access_management setting must be enabled for the initial user to use SQL RBAC.
 Q: Explain the ClickHouse configuration hierarchy.
 Config files are loaded from /etc/clickhouse-server/config.xml and the config.d/ directory. Files in config.d/ override/merge with the main config. The <replace="replace"> attribute replaces sections entirely; without it, sections merge. User-level settings can override server defaults per-session.
 Q: What settings would you recommend for a production ClickHouse cluster?
 
-max_memory_usage: Set per-user to prevent single queries from consuming all RAM.
+**max_memory_usage: Set per-user to prevent single queries from consuming all RAM.**
 max_execution_time: Prevent runaway queries.
 max_threads: Control parallelism.
 background_pool_size: Control merge thread count.
@@ -150,8 +145,8 @@ Set up proper RBAC with least-privilege access.
 Enable log_queries = 1 for query audit trail.
 Configure monitoring via system.metrics, Prometheus exporter, or Grafana.
 
-Category D: Docker & Deployment
-Q: What are common Docker deployment pitfalls for ClickHouse?
+**Category D: Docker & Deployment**
+**Q: What are common Docker deployment pitfalls for ClickHouse?**
 
 Not persisting data volumes (/var/lib/clickhouse must be a named volume or bind mount).
 Not exposing the right ports (8123 for HTTP, 9000 for native, 9181 for Keeper, 9234 for Raft).
@@ -170,15 +165,15 @@ Provide immediate mitigation if possible before root cause analysis.
 Communicate regularly — even if you don't have a fix, update the customer on progress.
 Document everything for the post-mortem.
 
-Q: When do you escalate a support case?
+**Q: When do you escalate a support case?**
 
 When you've exhausted your troubleshooting knowledge.
 When the issue involves core engine bugs requiring code-level investigation.
 When the customer's SLA deadline is approaching.
 When the issue affects multiple customers (potential product-wide bug).
 When the customer explicitly requests escalation.
-
-Q: How do you write a good support response?
+**
+Q: How do you write a good support response?**
 
 Start with acknowledging the issue.
 Explain the root cause clearly (not just the fix).
@@ -188,7 +183,7 @@ Offer proactive best practices to prevent similar issues.
 End with an open offer for follow-up questions.
 
 
-Part 3: Live SQL Exercise (15 min)
+**Part 3: Live SQL Exercise (15 min)**
 You'll work with these two tables:
 support_engineers: name (String), id (UInt8)
 - Sante (2), Konsta (3), Camilo (1), Derek (4), Thom (5)
@@ -199,7 +194,7 @@ cases_assigned: case_number (Nullable(String)), assignee_id (UInt8), date (Date)
 - Konsta (id=3): 6 cases
 - Derek (id=4): 1 case
 - Thom (id=5): 0 cases
-Likely SQL Questions and Answers
+**Likely SQL Questions and Answers**
 1. List all cases with the engineer's name (basic JOIN)
 sqlSELECT
     se.name,
@@ -353,25 +348,25 @@ Use OPTIMIZE TABLE ... FINAL to force merges and remove old parts.
 Set up TTL to automatically drop old data.
 Consider tiered storage (hot/cold with storage policies).
 
-Scenario 3: Query Timeout
+**Scenario 3: Query Timeout**
 "Our dashboard queries keep timing out."
 
-Check max_execution_time setting.
+**Check max_execution_time setting.**
 Look at the query plan — is a full table scan happening?
 Is the ORDER BY key aligned with the query's WHERE clause?
 Consider pre-aggregation with materialized views.
 Check concurrent query load via system.processes.
 
-Scenario 4: Authentication Issues
+**Scenario 4: Authentication Issues**
 "We set up LDAP auth and users can't log in."
 
-Check ClickHouse logs for LDAP connection errors.
+**Check ClickHouse logs for LDAP connection errors.**
 Verify LDAP server is reachable from the ClickHouse host.
 Check <ldap_servers> config in config.xml.
 Verify user mapping — does the ClickHouse user exist with LDAP auth?
 Test LDAP connectivity with ldapsearch from the ClickHouse host.
 
-Scenario 5: Cluster Configuration
+**Scenario 5: Cluster Configuration**
 "We want to add a new shard to our existing cluster."
 
 Update the <remote_servers> config on all nodes.
@@ -381,7 +376,7 @@ Consider using Distributed table engine to route queries across shards.
 Rebalancing existing data requires manual partition moves or re-insertion.
 
 
-Part 5: Questions to Ask the Interviewers (10 min)
+**Part 5: Questions to Ask the Interviewers (10 min)**
 Having thoughtful questions shows genuine interest. Here are strong ones:
 
 "What does a typical day look like for a support engineer on this team? How are cases prioritized and assigned?"
@@ -393,11 +388,11 @@ Having thoughtful questions shows genuine interest. Here are strong ones:
 "How does the team stay current with new ClickHouse features and releases?"
 "What's the ratio of ClickHouse Cloud vs. self-hosted customer issues?"
 
-
-Part 6: Quick Reference — Key ClickHouse Concepts to Have Ready
+**
+**Part 6: Quick Reference — Key ClickHouse Concepts to Have Ready****
 ConceptOne-linerColumnar storageData stored by column, not row — great for analytics, bad for point lookupsSparse indexOne entry per 8192 rows (granule), fits in RAM, skips irrelevant granulesMergeTreeCore engine: sorted parts + background mergesReplicatedMergeTreeMergeTree + replication via KeeperKeeperClickHouse's built-in ZooKeeper replacement using Raft consensusRaft consensusMajority-based agreement protocol; needs odd number of nodesDistributed tableVirtual table that fans queries out to shardsMaterialized viewINSERT trigger that transforms and writes to a target tableSettings profileNamed bundle of per-query settings (memory, time limits)Row policyTransparent row-level filter applied to a user/roleTTLAuto-expire or move data based on a date columnMutationsALTER TABLE ... UPDATE/DELETE — async, heavy operationsPartsPhysical data files on disk; too many = performance problemProjectionsPre-sorted/pre-aggregated copies within a table for faster queries
 
-Final Tips for Interview Day
+**Final Tips for Interview Day**
 
 Have your Docker environment ready with both tables loaded and ClickHouse running. Test it before the interview.
 Have your assignment open — you'll present from it. Know it inside out.
